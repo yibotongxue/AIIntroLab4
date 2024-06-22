@@ -21,6 +21,17 @@ def generate_uniform_particles(walls, N):
     for _ in range(N):
         all_particles.append(Particle(1.0, 1.0, 1.0, 0.0))
     ### 你的代码 ###
+    x_min, y_min = walls.min(axis=0)
+    x_max, y_max = walls.max(axis=0)
+    walls_list = walls.tolist()
+    for i in range(N):
+        while True:
+            x = np.random.randint(x_min, x_max, size=1)[0]
+            y = np.random.randint(y_min, y_max, size=1)[0]
+            if not np.any(np.all(np.array([x, y]) == walls_list, axis=1)):
+                theta = np.random.uniform(0, 2 * np.pi, size=1)[0]
+                all_particles[i] = Particle(x, y, theta, 1.0 / N)
+                break
     
     ### 你的代码 ###
     return all_particles
@@ -34,8 +45,11 @@ def calculate_particle_weight(estimated, gt):
     输出：
     weight, float, 该采样点的权重
     """
-    weight = 1.0
+    weight : float = 1.0
+    k = 1.0
     ### 你的代码 ###
+
+    weight = np.exp(-k * np.linalg.norm(estimated - gt))
     
     ### 你的代码 ###
     return weight
@@ -53,6 +67,28 @@ def resample_particles(walls, particles: List[Particle]):
     for _ in range(len(particles)):
         resampled_particles.append(Particle(1.0, 1.0, 1.0, 0.0))
     ### 你的代码 ###
+    n = 0
+    N = len(particles)
+    scale = 0.1
+    for particle in particles:
+        x =  int(particle.get_weight() * N)
+        if x == 0:
+            break
+        for _ in range(x):
+            resample_particles[n] = particle
+            resample_particles[n].theta = np.random.normal(loc=resample_particles[n].theta, scale=scale)
+            n += 1
+    x_min, y_min = walls.min(axis=0)
+    x_max, y_max = walls.max(axis=0)
+    walls_list = walls.tolist()
+    for i in range(n, N):
+        while True:
+            x = np.random.randint(x_min, x_max, size=1)[0]
+            y = np.random.randint(y_min, y_max, size=1)[0]
+            if not np.any(np.all(np.array([x, y]) == walls_list, axis=1)):
+                theta = np.random.uniform(0, 2 * np.pi, size=1)[0]
+                resample_particles[i] = Particle(x, y, theta, 1.0 / N)
+                break
     
     ### 你的代码 ###
     return resampled_particles
@@ -66,6 +102,10 @@ def apply_state_transition(p: Particle, traveled_distance, dtheta):
     """
     ### 你的代码 ###
 
+    p.theta += dtheta
+    p.position[0] += traveled_distance * np.cos(p.theta)
+    p.position[1] += traveled_distance * np.sin(p.theta)
+
     ### 你的代码 ###
     return p
 
@@ -78,6 +118,8 @@ def get_estimate_result(particles: List[Particle]):
     """
     final_result = Particle()
     ### 你的代码 ###
+
+    final_result = max(particles, key=lambda x : x.get_weight())
     
     ### 你的代码 ###
     return final_result
