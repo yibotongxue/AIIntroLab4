@@ -103,13 +103,14 @@ def load_scene_and_run_gen(scene, data_num):
             yield step_cnt
             
     except StopIteration as e:
-        result_particle = e.value                        
-        error = np.sqrt((result_particle.position[0]-odometry[-1, 0])**2
-                        +(result_particle.position[1]-odometry[-1, 1])**2
-                        +5*(result_particle.theta-odometry[-1, 2])**2)
+        result_particle = e.value 
+        x = np.abs(result_particle.theta - odometry[-1, 2]) / (2 * np.pi)
+        x -= int(x)
+        dtheta = 2 * np.pi * x
+        dtheta = 2 * np.pi - dtheta if dtheta > np.pi else dtheta
+        error = np.sqrt((result_particle.position[0]-odometry[-1, 0])**2+(result_particle.position[1]-odometry[-1, 1])**2+5*(dtheta)**2)
+        print(f"Error is {error:.6f}")
     
-    print(f"Error is {error:.6f}")
-    return error
 
 if __name__ == "__main__":
     args = readArgparse()
