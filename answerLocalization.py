@@ -6,6 +6,19 @@ from utils import Particle
 COLLISION_DISTANCE = 1
 MAX_ERROR = 50000
 
+def is_in_walls(point, walls):
+    return np.any(np.all(np.abs(point - walls) < np.array([0.75, 0.75]), axis=1))
+
+def is_out_of_range(point, t_range):
+    x_min, y_min, x_max, y_max = t_range
+    return float(point[0]) < x_min or float(point[0]) >= x_max or float(point[1]) < y_min or float(point[1]) >= y_max
+
+t_range = None
+t_walls = None
+
+k = 0.32
+scale = 0.48
+
 ### 可以在这里写下一些你需要的变量和函数 ###
 
 
@@ -23,14 +36,18 @@ def generate_uniform_particles(walls, N):
     ### 你的代码 ###
     x_min, y_min = walls.min(axis=0)
     x_max, y_max = walls.max(axis=0)
-    walls_list = walls.tolist()
+    global t_range
+    global t_walls
+    t_range = (x_min, y_min, x_max, y_max)
+    t_walls = walls.copy()
     for i in range(N):
         while True:
-            x = np.random.randint(x_min, x_max, size=1)[0]
-            y = np.random.randint(y_min, y_max, size=1)[0]
-            if not np.any(np.all(np.array([x, y]) == walls_list, axis=1)):
-                theta = np.random.uniform(0, 2 * np.pi, size=1)[0]
-                all_particles[i] = Particle(x, y, theta, 1.0 / N)
+            x = np.random.uniform(x_min, x_max)
+            y = np.random.uniform(y_min, y_max)
+            if not is_in_walls(np.array([x, y]), walls):
+                all_particles[i].position = np.array([x, y]).copy()
+                all_particles[i].theta = np.random.uniform(-np.pi, np.pi)
+                all_particles[i].weight = 1.0 / N
                 break
     
     ### 你的代码 ###
@@ -46,10 +63,10 @@ def calculate_particle_weight(estimated, gt):
     weight, float, 该采样点的权重
     """
     weight : float = 1.0
-    k = 1.0
+    global k
     ### 你的代码 ###
 
-    weight = np.exp(-k * np.linalg.norm(estimated - gt))
+    weight = float(np.exp(-k * np.linalg.norm(estimated - gt)))
     
     ### 你的代码 ###
     return weight
@@ -67,29 +84,29 @@ def resample_particles(walls, particles: List[Particle]):
     for _ in range(len(particles)):
         resampled_particles.append(Particle(1.0, 1.0, 1.0, 0.0))
     ### 你的代码 ###
-    n = 0
     N = len(particles)
-    scale = 0.1
-    for particle in particles:
-        x =  int(particle.get_weight() * N)
-        if x == 0:
-            break
-        for _ in range(x):
-            resample_particles[n] = particle
-            resample_particles[n].theta = np.random.normal(loc=resample_particles[n].theta, scale=scale)
-            n += 1
     x_min, y_min = walls.min(axis=0)
     x_max, y_max = walls.max(axis=0)
-    walls_list = walls.tolist()
-    for i in range(n, N):
+    global t_range
+    global t_walls
+    t_range = (float(x_min), float(y_min), float(x_max), float(y_max))
+    t_walls = walls.copy()
+    global scale
+    weights = [particle.weight for particle in particles]
+    prefix_sum = np.cumsum(weights)
+    for i in range(N):
         while True:
-            x = np.random.randint(x_min, x_max, size=1)[0]
-            y = np.random.randint(y_min, y_max, size=1)[0]
-            if not np.any(np.all(np.array([x, y]) == walls_list, axis=1)):
-                theta = np.random.uniform(0, 2 * np.pi, size=1)[0]
-                resample_particles[i] = Particle(x, y, theta, 1.0 / N)
-                break
-    
+            weight = np.random.uniform(0, prefix_sum[-1])
+            pos = np.searchsorted(prefix_sum, weight)
+            resampled_particles[i].position = particles[pos].position.copy()
+            resampled_particles[i].theta = particles[pos].theta + np.random.normal(0, scale)
+            if resampled_particles[i].theta < -np.pi:
+                resampled_particles[i].theta += 2 * np.pi
+            if resampled_particles[i].theta >= np.pi:
+                resampled_particles[i].theta -= 2 * np.pi
+            resampled_particles[i].weight = particles[pos].weight
+            break
+                
     ### 你的代码 ###
     return resampled_particles
 
@@ -103,6 +120,16 @@ def apply_state_transition(p: Particle, traveled_distance, dtheta):
     ### 你的代码 ###
 
     p.theta += dtheta
+    if p.theta < -np.pi:
+        p.theta += 2 * np.pi
+    if p.theta >= np.pi:
+        p.theta -= 2 * np.pi
+    global t_range
+    global t_walls
+    t_x = p.position[0] + traveled_distance * np.cos(p.theta)
+    t_y = p.position[1] + traveled_distance * np.sin(p.theta)
+    if is_in_walls(np.array([t_x, t_y]), t_walls) or is_out_of_range(np.array([t_x, t_y]), t_range):
+        return p
     p.position[0] += traveled_distance * np.cos(p.theta)
     p.position[1] += traveled_distance * np.sin(p.theta)
 
