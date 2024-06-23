@@ -16,8 +16,8 @@ def is_out_of_range(point, t_range):
 t_range = None
 t_walls = None
 
-k = 0.236
-scale = 0.638
+k = 0.2322
+scale = 0.5064
 
 ### 可以在这里写下一些你需要的变量和函数 ###
 
@@ -127,7 +127,7 @@ def apply_state_transition(p: Particle, traveled_distance, dtheta):
     global t_walls
     t_x = p.position[0] + traveled_distance * np.cos(p.theta)
     t_y = p.position[1] + traveled_distance * np.sin(p.theta)
-    if is_in_walls(np.array([t_x, t_y]), t_walls) or is_out_of_range(np.array([t_x, t_y]), t_range):
+    while is_in_walls(np.array([t_x, t_y]), t_walls) or is_out_of_range(np.array([t_x, t_y]), t_range):
         return p
     p.position[0] += traveled_distance * np.cos(p.theta)
     p.position[1] += traveled_distance * np.sin(p.theta)
