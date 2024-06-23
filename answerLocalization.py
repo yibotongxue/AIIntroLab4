@@ -16,8 +16,8 @@ def is_out_of_range(point, t_range):
 t_range = None
 t_walls = None
 
-k = 0.25
-scale = 0.46
+k = 0.236
+scale = 0.638
 
 ### 可以在这里写下一些你需要的变量和函数 ###
 
@@ -63,8 +63,8 @@ def calculate_particle_weight(estimated, gt):
     weight, float, 该采样点的权重
     """
     weight : float = 1.0
-    global k
     ### 你的代码 ###
+    global k
 
     weight = float(np.exp(-k * np.linalg.norm(estimated - gt)))
     
@@ -84,17 +84,16 @@ def resample_particles(walls, particles: List[Particle]):
     for _ in range(len(particles)):
         resampled_particles.append(Particle(1.0, 1.0, 1.0, 0.0))
     ### 你的代码 ###
-    N = len(particles)
+    global scale
     x_min, y_min = walls.min(axis=0)
     x_max, y_max = walls.max(axis=0)
     global t_range
     global t_walls
     t_range = (float(x_min), float(y_min), float(x_max), float(y_max))
     t_walls = walls.copy()
-    global scale
     weights = [particle.weight for particle in particles]
     prefix_sum = np.cumsum(weights)
-    for i in range(N):
+    for i in range(len(particles)):
         while True:
             weight = np.random.uniform(0, prefix_sum[-1])
             pos = np.searchsorted(prefix_sum, weight)
@@ -104,7 +103,7 @@ def resample_particles(walls, particles: List[Particle]):
                 resampled_particles[i].theta += 2 * np.pi
             if resampled_particles[i].theta >= np.pi:
                 resampled_particles[i].theta -= 2 * np.pi
-            resampled_particles[i].weight = particles[pos].weight
+            resampled_particles[i].weight = particles[pos].weight + 0.0
             break
                 
     ### 你的代码 ###
