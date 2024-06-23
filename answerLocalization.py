@@ -16,8 +16,8 @@ def is_out_of_range(point, t_range):
 t_range = None
 t_walls = None
 
-k = 0.32
-scale = 0.48
+k = 0.25
+scale = 0.46
 
 ### 可以在这里写下一些你需要的变量和函数 ###
 
