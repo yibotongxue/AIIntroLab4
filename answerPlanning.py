@@ -23,6 +23,9 @@ class RRT:
         # 其他需要的变量
         ### 你的代码 ###      
 
+        self.current_node_in_path = 0
+        self.current_next_food = None
+
         ### 你的代码 ###
         
         # 如有必要，此行可删除
@@ -39,6 +42,9 @@ class RRT:
         """
         
         ### 你的代码 ###      
+
+        self.current_next_food = next_food
+        self.current_node_in_path = 0
 
         ### 你的代码 ###
         # 如有必要，此行可删除
@@ -61,7 +67,14 @@ class RRT:
         """
         target_pose = np.zeros_like(current_position)
         ### 你的代码 ###
-        
+
+        if np.linalg.norm(current_position - self.path[self.current_node_in_path]) < TARGET_THREHOLD:
+            self.current_node_in_path += 1      
+            target_pose =  self.path[self.current_node_in_path]
+        else:
+            self.find_path(current_position, self.current_next_food)
+            return self.get_target(current_position, current_velocity)
+
         ### 你的代码 ###
         return target_pose
         
@@ -78,7 +91,33 @@ class RRT:
         graph.append(TreeNode(-1, start[0], start[1]))
         ### 你的代码 ###
         
-        
+        cur_distance_to_goal = np.linalg.norm(goal - start)
+
+        while cur_distance_to_goal > STEP_DISTANCE:
+            rand_point_x = np.random.uniform(0, self.map.height)
+            rand_point_y = np.random.uniform(0, self.map.width)
+            rand_point = np.array([rand_point_x, rand_point_y])
+            idx, dis = self.find_nearest_point(rand_point, graph)
+            is_empty, newpoint = self.connect_a_to_b(graph[idx].pos, rand_point)
+            print(newpoint)
+            if is_empty:
+                graph.append(TreeNode(idx, newpoint[0], newpoint[1]))
+                cur_distance_to_goal = np.linalg.norm(goal - newpoint)
+        path.append(TreeNode(None, goal[0], goal[1]))
+        path.append(graph[-1])
+        path_pos = [goal]
+        while not path[-1].parent_idx == -1:
+            node = graph[path[-1].parent_idx]
+            if np.any(np.all(node.pos == np.array(path_pos), axis=1)):
+                np.where(np.all(node.pos == np.array(path_pos), axis=1))
+                path_pos = path_pos[:idx]
+                path_pos[-1] = node[-1].copy()
+                continue
+            path.append(graph[path[-1].parent_idx])
+        path.reverse()
+        for i, node in enumerate(path):
+            node.parent_idx = i - 1
+
         ### 你的代码 ###
         return path
 
@@ -96,6 +135,10 @@ class RRT:
         nearest_distance = 10000000.
         ### 你的代码 ###
 
+        distances = [np.linalg.norm(node.pos - point) for node in graph]
+        nearest_idx = np.argmin(distances)
+        nearest_distance = distances[nearest_idx]
+
         ### 你的代码 ###
         return nearest_idx, nearest_distance
     
@@ -111,6 +154,12 @@ class RRT:
         is_empty = False
         newpoint = np.zeros(2)
         ### 你的代码 ###
+
+        length = np.linalg.norm(point_a - point_b)
+        newpoint = (STEP_DISTANCE / length) * (point_b - point_a) + point_a
+        has_thing, c_point = self.map.checkline(point_a.tolist(), newpoint.tolist())
+        if not has_thing:
+            is_empty = True
 
         ### 你的代码 ###
         return is_empty, newpoint
