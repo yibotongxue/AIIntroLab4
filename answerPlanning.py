@@ -5,8 +5,8 @@ from simuScene import PlanningMap
 
 
 ### 定义一些你需要的变量和函数 ###
-STEP_DISTANCE = 0.5
-TARGET_THREHOLD = 0.25
+STEP_DISTANCE = 0.80
+TARGET_THREHOLD = 1.2
 
 ### 定义一些你需要的变量和函数 ###
 
@@ -25,6 +25,7 @@ class RRT:
 
         self.current_node_in_path = 0
         self.current_next_food = None
+        self.path_length = None
 
         ### 你的代码 ###
         
@@ -43,8 +44,11 @@ class RRT:
         
         ### 你的代码 ###      
 
-        self.current_next_food = next_food
+        self.current_next_food = next_food.copy()
         self.current_node_in_path = 0
+        self.path = self.build_tree(current_position, next_food)
+        self.path_length = len(self.path)
+        return
 
         ### 你的代码 ###
         # 如有必要，此行可删除
@@ -68,12 +72,16 @@ class RRT:
         target_pose = np.zeros_like(current_position)
         ### 你的代码 ###
 
-        if np.linalg.norm(current_position - self.path[self.current_node_in_path]) < TARGET_THREHOLD:
-            self.current_node_in_path += 1      
-            target_pose =  self.path[self.current_node_in_path]
-        else:
+        target_idx = self.path_length - 1
+        while target_idx > self.current_node_in_path and self.map.checkline(current_position.tolist(), self.path[target_idx].pos.tolist())[0]:
+            target_idx -= 1
+
+        if target_idx == self.current_node_in_path:
             self.find_path(current_position, self.current_next_food)
             return self.get_target(current_position, current_velocity)
+        else:
+            target_pose = self.path[target_idx].pos
+            self.current_node_in_path = target_idx
 
         ### 你的代码 ###
         return target_pose
@@ -90,30 +98,36 @@ class RRT:
         graph: List[TreeNode] = []
         graph.append(TreeNode(-1, start[0], start[1]))
         ### 你的代码 ###
-        
-        cur_distance_to_goal = np.linalg.norm(goal - start)
 
-        while cur_distance_to_goal > STEP_DISTANCE:
+        flag_of_RRT = self.map.checkline(graph[-1].pos.tolist(), goal.tolist())[0]
+
+        while flag_of_RRT:
             rand_point_x = np.random.uniform(0, self.map.height)
             rand_point_y = np.random.uniform(0, self.map.width)
             rand_point = np.array([rand_point_x, rand_point_y])
             idx, dis = self.find_nearest_point(rand_point, graph)
-            is_empty, newpoint = self.connect_a_to_b(graph[idx].pos, rand_point)
-            print(newpoint)
-            if is_empty:
-                graph.append(TreeNode(idx, newpoint[0], newpoint[1]))
-                cur_distance_to_goal = np.linalg.norm(goal - newpoint)
+            newpoint_list = self.connect_a_to_b(graph[idx].pos, rand_point)
+            for point in newpoint_list:
+                graph.append(TreeNode(idx, point[0], point[1]))
+                if not self.map.checkline(graph[-1].pos.tolist(), goal.tolist())[0]:
+                    flag_of_RRT = False
+                    break
         path.append(TreeNode(None, goal[0], goal[1]))
         path.append(graph[-1])
-        path_pos = [goal]
+        path_pos = [goal, graph[-1].pos]
         while not path[-1].parent_idx == -1:
             node = graph[path[-1].parent_idx]
-            if np.any(np.all(node.pos == np.array(path_pos), axis=1)):
-                np.where(np.all(node.pos == np.array(path_pos), axis=1))
-                path_pos = path_pos[:idx]
-                path_pos[-1] = node[-1].copy()
-                continue
+            # if np.any(np.all(node.pos == np.array(path_pos), axis=1)):
+            #     index = np.where(np.all(np.array(path_pos) == node.pos, axis=1))
+            #     print(index)
+            #     np.where(np.all(node.pos == np.array(path_pos), axis=1))
+            #     path_pos = path_pos[:idx]
+            #     path_pos[-1] = node[-1].copy()
+            #     continue
             path.append(graph[path[-1].parent_idx])
+            if not np.all(start == node.pos) and not self.map.checkline(start.tolist(), node.pos.tolist()):
+                path.append(graph[0])
+                break
         path.reverse()
         for i, node in enumerate(path):
             node.parent_idx = i - 1
@@ -134,10 +148,14 @@ class RRT:
         nearest_idx = -1
         nearest_distance = 10000000.
         ### 你的代码 ###
-
-        distances = [np.linalg.norm(node.pos - point) for node in graph]
-        nearest_idx = np.argmin(distances)
-        nearest_distance = distances[nearest_idx]
+        min_distance = 0.9
+        distances = [np.linalg.norm(node.pos - point) for node in graph if np.linalg.norm(node.pos - point) > min_distance]
+        while len(distances) == 0:
+            min_distance /= 1.5
+            distances = [np.linalg.norm(node.pos - point) for node in graph if np.linalg.norm(node.pos - point) > min_distance]
+        else:
+            nearest_idx = np.argmin(distances)
+            nearest_distance = distances[nearest_idx]
 
         ### 你的代码 ###
         return nearest_idx, nearest_distance
@@ -154,12 +172,18 @@ class RRT:
         is_empty = False
         newpoint = np.zeros(2)
         ### 你的代码 ###
-
-        length = np.linalg.norm(point_a - point_b)
-        newpoint = (STEP_DISTANCE / length) * (point_b - point_a) + point_a
-        has_thing, c_point = self.map.checkline(point_a.tolist(), newpoint.tolist())
-        if not has_thing:
-            is_empty = True
+        
+        points_list = []
+        cur_point = point_a.copy()
+        length = np.linalg.norm(point_b - point_a)
+        step = (STEP_DISTANCE / length) * (point_b - point_a)
+        while True:
+            cur_point = cur_point + step
+            if np.all(point_a == cur_point) or self.map.checkline(point_a, cur_point)[0]:
+                break
+            else:
+                points_list.append(cur_point.copy())
+        return points_list
 
         ### 你的代码 ###
         return is_empty, newpoint
