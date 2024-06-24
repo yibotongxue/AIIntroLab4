@@ -16,8 +16,8 @@ def is_out_of_range(point, t_range):
 t_range = None
 t_walls = None
 
-k = 0.2322
-scale = 0.5064
+k = 0.42
+scale = 0.096
 
 ### 可以在这里写下一些你需要的变量和函数 ###
 
@@ -97,7 +97,7 @@ def resample_particles(walls, particles: List[Particle]):
         while True:
             weight = np.random.uniform(0, prefix_sum[-1])
             pos = np.searchsorted(prefix_sum, weight)
-            resampled_particles[i].position = particles[pos].position.copy()
+            resampled_particles[i].position = particles[pos].position + np.random.normal(0, scale, size=(2,))
             resampled_particles[i].theta = particles[pos].theta + np.random.normal(0, scale)
             if resampled_particles[i].theta < -np.pi:
                 resampled_particles[i].theta += 2 * np.pi
