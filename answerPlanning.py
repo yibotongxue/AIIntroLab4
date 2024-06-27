@@ -5,7 +5,7 @@ from simuScene import PlanningMap
 
 
 ### 定义一些你需要的变量和函数 ###
-STEP_DISTANCE = 1.6
+STEP_DISTANCE = 1.42
 TARGET_THREHOLD = 1.2
 
 ### 定义一些你需要的变量和函数 ###
@@ -49,12 +49,6 @@ class RRT:
         self.current_node_in_path = 0
         self.path = self.build_tree(current_position, next_food)
         self.path_length = len(self.path)
-        # if self.path_length >= 3:
-        #     for i in range(self.path_length - 2):
-        #         if not self.map.checkline(self.path[i].pos.tolist(), self.path[i + 2].pos.tolist())[0]:
-        #             print("error")
-        #             exit(-1)
-        # print("found", self.path_length)
         return
 
         ### 你的代码 ###
@@ -79,12 +73,6 @@ class RRT:
         target_pose = np.zeros_like(current_position)
         ### 你的代码 ###
 
-        if self.current_node_in_path == self.path_length - 1:
-            if self.map.checkline(current_position.tolist(), self.path[-1].pos.tolist())[0]:
-                self.find_path(current_position, self.current_next_food)
-                return self.get_target(current_position, current_velocity)
-            return self.path[-1].pos
-
         if np.all(self.path[self.current_node_in_path].pos == current_position):
             self.current_node_in_path += 1
             return self.path[self.current_node_in_path].pos
@@ -93,15 +81,11 @@ class RRT:
         while target_idx >= self.current_node_in_path and self.map.checkline(current_position.tolist(), self.path[target_idx].pos.tolist())[0]:
             target_idx -= 1
 
-        # print(target_idx, self.current_node_in_path)
-
         if target_idx < self.current_node_in_path:
-            # print("rebuild", current_position, self.path[self.current_node_in_path].pos)
             self.find_path(current_position, self.current_next_food)
             return self.get_target(current_position, current_velocity)
         else:
             target_pose = self.path[target_idx].pos.copy()
-            # print(self.current_node_in_path, target_idx)
             self.current_node_in_path = target_idx
 
         ### 你的代码 ###
@@ -139,13 +123,8 @@ class RRT:
                 if not self.map.checkline(node.pos.tolist(), path[i].pos.tolist())[0]:
                     path = path[:i + 1]
                     break
-            # if self.map.checkline(node.pos.tolist(), path[-1].pos.tolist())[0]:
-            #     print("build error")
-            #     exit(-2)
             path.append(node)
         path.reverse()
-        for i, node in enumerate(path):
-            node.parent_idx = i - 1
 
         ### 你的代码 ###
         return path
@@ -165,8 +144,8 @@ class RRT:
         nearest_distance = 10000000.
         ### 你的代码 ###
         t_distances = [np.linalg.norm(node.pos - point) for node in graph]
-        nearest_distance = np.min(t_distances)
-        nearest_idx = t_distances.index(nearest_distance)
+        nearest_idx = np.argmin(t_distances)
+        nearest_distance = t_distances[nearest_idx]
 
         ### 你的代码 ###
         return nearest_idx, nearest_distance
@@ -186,23 +165,11 @@ class RRT:
 
         length = np.linalg.norm(point_b - point_a)
         newpoint = (STEP_DISTANCE / length) * (point_b - point_a) + point_a
-        is_ocuppy, c_point = self.map.checkline(point_a.tolist(), newpoint.tolist())
-        if is_ocuppy and c_point:
+        is_ocuppy, _ = self.map.checkline(point_a.tolist(), newpoint.tolist())
+        if is_ocuppy:
             return False, None
-        elif not is_ocuppy and not c_point:
-            return True, newpoint.copy()
         else:
-            print("error")
-            exit(1)
-        # while True:
-        #     cur_point = cur_point + step
-        #     if np.all(point_a == cur_point) or self.map.checkline(point_a, cur_point)[0]:
-        #         break
-        #     else:
-        #         points_list.append(cur_point.copy())
-        #         break
-        # points_list.reverse()
-        # return points_list
+            return True, newpoint.copy()
 
         ### 你的代码 ###
         return is_empty, newpoint
