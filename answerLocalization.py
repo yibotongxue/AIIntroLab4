@@ -13,12 +13,6 @@ def is_out_of_range(point, t_range):
     x_min, y_min, x_max, y_max = t_range
     return float(point[0]) < x_min or float(point[0]) >= x_max or float(point[1]) < y_min or float(point[1]) >= y_max
 
-t_range = None
-t_walls = None
-
-k = 0.42
-scale = 0.096
-
 ### 可以在这里写下一些你需要的变量和函数 ###
 
 
@@ -64,9 +58,8 @@ def calculate_particle_weight(estimated, gt):
     """
     weight : float = 1.0
     ### 你的代码 ###
-    global k
 
-    weight = float(np.exp(-k * np.linalg.norm(estimated - gt)))
+    weight = float(np.exp(-0.84 * np.linalg.norm(estimated - gt)))
     
     ### 你的代码 ###
     return weight
@@ -84,7 +77,6 @@ def resample_particles(walls, particles: List[Particle]):
     for _ in range(len(particles)):
         resampled_particles.append(Particle(1.0, 1.0, 1.0, 0.0))
     ### 你的代码 ###
-    global scale
     x_min, y_min = walls.min(axis=0)
     x_max, y_max = walls.max(axis=0)
     global t_range
@@ -97,8 +89,8 @@ def resample_particles(walls, particles: List[Particle]):
         while True:
             weight = np.random.uniform(0, prefix_sum[-1])
             pos = np.searchsorted(prefix_sum, weight)
-            resampled_particles[i].position = particles[pos].position + np.random.normal(0, scale, size=(2,))
-            resampled_particles[i].theta = particles[pos].theta + np.random.normal(0, scale)
+            resampled_particles[i].position = particles[pos].position + np.random.normal(0, 0.094, size=(2,))
+            resampled_particles[i].theta = particles[pos].theta + np.random.normal(0, 0.094)
             if resampled_particles[i].theta < -np.pi:
                 resampled_particles[i].theta += 2 * np.pi
             if resampled_particles[i].theta >= np.pi:
@@ -128,6 +120,9 @@ def apply_state_transition(p: Particle, traveled_distance, dtheta):
     t_x = p.position[0] + traveled_distance * np.cos(p.theta)
     t_y = p.position[1] + traveled_distance * np.sin(p.theta)
     while is_in_walls(np.array([t_x, t_y]), t_walls) or is_out_of_range(np.array([t_x, t_y]), t_range):
+        p.position[0] = np.random.uniform(t_range[0], t_range[2])
+        p.position[1] = np.random.uniform(t_range[1], t_range[3])
+        p.theta = np.random.uniform(-np.pi, np.pi)
         return p
     p.position[0] += traveled_distance * np.cos(p.theta)
     p.position[1] += traveled_distance * np.sin(p.theta)
